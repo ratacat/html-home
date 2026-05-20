@@ -1,6 +1,6 @@
 # html-home
 
-One localhost front door for HTML artifacts that live in your repos.
+A lightweight local catalog for HTML artifacts scattered across your projects.
 
 `html-home` turns scattered coverage reports, dashboards, prototypes, debug pages, and generated views into one local start page with stable URL shapes, without copying them out of their projects.
 

@@ -1,7 +1,7 @@
 {
   "name": "html-home",
   "version": "0.1.0",
-  "description": "One localhost front door for repo-local HTML artifacts.",
+  "description": "A lightweight local catalog for HTML artifacts scattered across your projects.",
   "type": "module",
   "private": true,
   "bin": {
