@@ -86,13 +86,10 @@ It is intended for localhost use. Do not expose it directly to an untrusted netw
 
 Requires Bun.
 
-For now, install from source with Bun:
+Install or update with:
 
 ```sh
-git clone https://github.com/ratacat/html-home.git
-cd html-home
-bun install
-bun link
+curl -fsSL https://raw.githubusercontent.com/ratacat/html-home/main/install.sh | bash
 ```
 
 Then:
@@ -101,7 +98,7 @@ Then:
 html-home --help
 ```
 
-After `bun link`, the `html-home` command is available on your PATH.
+The installer keeps a managed checkout at `~/.local/share/html-home` and writes `html-home` to `~/.local/bin`. Re-run the same command to update.
 
 ## Failure Is Visible
 
