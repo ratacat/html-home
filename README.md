@@ -14,6 +14,20 @@ Each one often gets its own server, port, and startup command. Copying everythin
 
 `html-home` gives those artifacts a shared front door without taking ownership of them.
 
+## Quick Install
+
+Requires Bun.
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ratacat/html-home/main/install.sh | bash
+```
+
+For agent instructions, add a small rule to your repo's `AGENTS.md`:
+
+```md
+When you need a local HTML server, use `html-home`; do not start ad hoc static servers. Expose artifacts via `.html-home.json`, then run `html-home register /path/to/repo` and `html-home rescan`.
+```
+
 ## The Model
 
 **Manifests declare artifacts.**  
