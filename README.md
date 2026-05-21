@@ -2,6 +2,10 @@
 
 A lightweight local catalog for HTML artifacts scattered across your projects.
 
+<p align="center">
+  <img src="assets/bench.jpg" alt="HTML artifacts arranged on a workbench" width="760">
+</p>
+
 `html-home` turns scattered coverage reports, dashboards, prototypes, debug pages, and generated views into one local start page with stable URL shapes, without copying them out of their projects.
 
 Generated HTML belongs near the code, data, branch, and scripts that produced it. Humans still need one place to find it. `html-home` keeps those concerns separate: repos declare artifacts, local state remembers registered repos, and one read-only server serves what exists.
@@ -40,55 +44,6 @@ Registration is local to the machine. It points `html-home` at repos with manife
 The foreground server renders a start page and serves artifact files from their home repos. HTTP is read-only in v1; CLI commands perform registration changes.
 
 This is the smallest useful structure: the repo owns the artifact, the local index owns discovery, and the server owns presentation. Because those jobs stay separate, `html-home` can cover many unrelated projects without becoming a build system, sync folder, dev-server proxy, or daemon.
-
-## A Tiny Example
-
-```text
-my-project/
-  .html-home.json
-  artifacts/
-    dashboard/
-      index.html
-      app.css
-```
-
-```json
-{
-  "version": 1,
-  "project": {
-    "slug": "my-project",
-    "title": "My Project"
-  },
-  "artifacts": [
-    {
-      "slug": "dashboard",
-      "title": "Dashboard",
-      "path": "artifacts/dashboard",
-      "entry": "index.html",
-      "tags": ["debug", "local"]
-    }
-  ]
-}
-```
-
-```sh
-html-home register /path/to/my-project
-html-home serve
-```
-
-Open:
-
-```text
-http://127.0.0.1:8765/
-```
-
-The artifact gets a stable local URL shape:
-
-```text
-http://127.0.0.1:8765/a/my-project/dashboard/
-```
-
-The `dashboard` artifact is served from `artifacts/dashboard/index.html`. Its files stay in the repo, so relative asset URLs inside the artifact directory keep working.
 
 ## Status
 
@@ -155,6 +110,55 @@ So v1 keeps mutation explicit:
 - serve through one read-only localhost process
 
 Background behavior can be added later only if it earns its keep.
+
+## Manifest Schema
+
+```text
+my-project/
+  .html-home.json
+  artifacts/
+    dashboard/
+      index.html
+      app.css
+```
+
+```json
+{
+  "version": 1,
+  "project": {
+    "slug": "my-project",
+    "title": "My Project"
+  },
+  "artifacts": [
+    {
+      "slug": "dashboard",
+      "title": "Dashboard",
+      "path": "artifacts/dashboard",
+      "entry": "index.html",
+      "tags": ["debug", "local"]
+    }
+  ]
+}
+```
+
+```sh
+html-home register /path/to/my-project
+html-home serve
+```
+
+Open:
+
+```text
+http://127.0.0.1:8765/
+```
+
+The artifact gets a stable local URL shape:
+
+```text
+http://127.0.0.1:8765/a/my-project/dashboard/
+```
+
+The `dashboard` artifact is served from `artifacts/dashboard/index.html`. Its files stay in the repo, so relative asset URLs inside the artifact directory keep working.
 
 ## More Detail
 
