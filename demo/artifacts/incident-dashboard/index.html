@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Incident Dashboard</title>
+  <style>
+    body { margin: 0; color: #f6efe3; background: #101418; font: 15px/1.45 ui-sans-serif, system-ui; }
+    main { max-width: 980px; margin: 0 auto; padding: 38px 24px; }
+    h1 { margin: 0 0 6px; font: 700 34px/1.05 Georgia, serif; }
+    .muted { color: #a99f90; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 26px 0; }
+    section, article { border: 1px solid rgba(255,255,255,.12); border-radius: 8px; background: #181d22; padding: 18px; }
+    b { color: #7ee6b1; font-size: 30px; display: block; }
+    .timeline { display: grid; gap: 10px; }
+    .timeline span { display: block; padding: 10px 12px; border-left: 3px solid #55d6ff; background: rgba(85,214,255,.08); }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="muted">sample artifact / ops</p>
+    <h1>Incident Dashboard</h1>
+    <p class="muted">A static report meant to prove artifact routing, relative assets, and screenshot-ready UI.</p>
+    <div class="grid">
+      <article><b>99.94%</b><span class="muted">uptime</span></article>
+      <article><b>18m</b><span class="muted">mean recovery</span></article>
+      <article><b>4</b><span class="muted">open actions</span></article>
+    </div>
+    <section>
+      <h2>Timeline</h2>
+      <div class="timeline">
+        <span>10:12 alert grouped into platform lane</span>
+        <span>10:18 mitigation deployed from cached bundle</span>
+        <span>10:31 service returned to nominal state</span>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

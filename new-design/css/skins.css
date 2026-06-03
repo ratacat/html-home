@@ -1,0 +1,66 @@
+/* ============================================================================
+   html-home · skins.css
+   ----------------------------------------------------------------------------
+   Three example skins. Each one ONLY overrides tokens (+ flips a flourish flag).
+   No markup, no structure here. To add a fourth skin: copy one block, retune.
+   ============================================================================ */
+
+/* ============================ [ SKIN: workbench ] ========================= */
+/* Dark wood table · AGED parchment & slate cards · animated neon edge-light.
+   Tuned: parchment warmed + deepened so cards no longer glare white, and ink
+   contrast raised for legibility against the bench. */
+html[data-skin="workbench"] {
+  --bg: #14110c;  --bg-2: #0c0a07;
+  --surface: #d8c6a0;  --surface-2: #ccb789;
+  --fg: #271f12;  --fg-strong: #150e03;  --muted: #6a5d41;
+  --border: rgba(40,30,12,.26); --border-strong: rgba(40,30,12,.46);
+  --accent: oklch(82% 0.14 200); --accent-2: oklch(72% 0.19 332); --accent-3: oklch(74% 0.15 268);
+  --card-shadow: 0 22px 46px -24px rgba(0,0,0,.85), 0 3px 8px -3px rgba(0,0,0,.6);
+  --font-display: 'Iowan Old Style', 'Charter', Georgia, serif;
+  --edge-on: 1; --edge-blur: 18px; --grid-on: 0; --reg-on: 0; --bench-on: 1;
+  --thumb-stroke: oklch(46% 0.10 235);
+  /* faint fibrous paper grain so parchment reads as aged, not flat white */
+  --paper:
+    radial-gradient(120% 90% at 20% 0%, rgba(255,250,235,.5), transparent 55%),
+    repeating-linear-gradient(94deg, rgba(120,96,52,.05) 0 2px, transparent 2px 5px),
+    radial-gradient(140% 120% at 80% 110%, rgba(70,52,24,.16), transparent 60%);
+}
+
+/* ============================= [ SKIN: ozalid ] ========================== */
+/* Blueprint / drafting · prussian ground · cyan hairline grid · all-mono.
+   Tuned: the heavy gridlines are now faint (--grid-heavy), and drafting
+   registration marks are switched on (--reg-on) — the "stray marks" detail. */
+html[data-skin="ozalid"] {
+  --bg: oklch(30% 0.072 248); --bg-2: oklch(24% 0.066 250);
+  --surface: oklch(33% 0.060 249 / .42); --surface-2: oklch(38% 0.058 248 / .5);
+  --thumb-bg: oklch(26% 0.05 250 / .5);
+  --fg: oklch(91% 0.045 224); --fg-strong: oklch(97% 0.04 220); --muted: oklch(74% 0.06 230);
+  --border: oklch(80% 0.10 220 / .30); --border-strong: oklch(82% 0.12 218 / .55);
+  --accent: oklch(83% 0.13 218); --accent-2: oklch(83% 0.13 218); --accent-3: oklch(83% 0.13 218);
+  --ok: oklch(82% 0.13 200); --warn: oklch(84% 0.12 95); --bad: oklch(74% 0.16 30);
+  --card-shadow: 0 1px 0 oklch(85% 0.12 220 / .12), 0 16px 40px -28px #000;
+  --radius: 3px; --radius-sm: 2px;
+  --font-display: 'SF Mono', 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --font-body: 'SF Mono', 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --edge-on: 0; --grid-on: 1; --grid-heavy: 0.06; --grid-fine: 0.032; --reg-on: 0.8; --bench-on: 0;
+  --thumb-stroke: oklch(85% 0.13 218);
+  --kicker-spacing: .34em;
+}
+
+/* ============================= [ SKIN: gallery ] ========================= */
+/* Cool museum white · hairline ink · one accent · letterpress calm. (left as-is) */
+html[data-skin="gallery"] {
+  --bg: oklch(95% 0.004 250); --bg-2: oklch(92% 0.005 250);
+  --surface: oklch(100% 0 0); --surface-2: oklch(98% 0.003 250);
+  --thumb-bg: oklch(96% 0.004 250);
+  --fg: oklch(26% 0.012 262); --fg-strong: oklch(16% 0.014 264); --muted: oklch(54% 0.012 262);
+  --border: oklch(20% 0.02 264 / .12); --border-strong: oklch(20% 0.02 264 / .26);
+  --accent: oklch(56% 0.16 27); --accent-2: oklch(56% 0.16 27); --accent-3: oklch(56% 0.16 27);
+  --ok: oklch(58% 0.13 155); --warn: oklch(70% 0.13 70); --bad: oklch(58% 0.20 27);
+  --card-shadow: 0 1px 2px rgba(20,22,30,.05), 0 14px 30px -20px rgba(20,22,30,.22);
+  --radius: 4px; --radius-sm: 3px;
+  --font-display: 'Iowan Old Style', 'Charter', Georgia, serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+  --edge-on: 0; --grid-on: 0; --reg-on: 0; --bench-on: 0;
+  --thumb-stroke: oklch(56% 0.16 27);
+}

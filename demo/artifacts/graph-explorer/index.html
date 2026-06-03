@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Graph Explorer</title>
+  <style>
+    body { margin: 0; color: #08202a; background: #d9edf2; font: 15px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    main { max-width: 1000px; margin: 0 auto; padding: 34px 24px; }
+    h1 { margin: 0 0 8px; font-size: 30px; }
+    .canvas { margin-top: 24px; border: 1px solid #6aa8b5; border-radius: 6px; background: #eff9fb; min-height: 460px; display: grid; place-items: center; }
+    svg { width: min(760px, 92vw); height: 380px; }
+    line { stroke: #7eaab4; stroke-width: 2; }
+    circle { fill: #0b758b; }
+    circle.hub { fill: #d65345; }
+    text { fill: #12323a; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <main>
+    <p>sample artifact / research graph</p>
+    <h1>Graph Explorer</h1>
+    <p>Static graph view for demo screenshots.</p>
+    <div class="canvas">
+      <svg viewBox="0 0 760 380" role="img" aria-label="Sample graph">
+        <line x1="380" y1="190" x2="180" y2="90"></line><line x1="380" y1="190" x2="580" y2="80"></line>
+        <line x1="380" y1="190" x2="210" y2="285"></line><line x1="380" y1="190" x2="560" y2="290"></line>
+        <line x1="180" y1="90" x2="210" y2="285"></line><line x1="580" y1="80" x2="560" y2="290"></line>
+        <circle class="hub" cx="380" cy="190" r="28"></circle><circle cx="180" cy="90" r="20"></circle>
+        <circle cx="580" cy="80" r="20"></circle><circle cx="210" cy="285" r="20"></circle><circle cx="560" cy="290" r="20"></circle>
+        <text x="344" y="238">artifact index</text><text x="118" y="63">source repos</text><text x="533" y="53">tags</text>
+        <text x="145" y="331">diagnostics</text><text x="518" y="337">routes</text>
+      </svg>
+    </div>
+  </main>
+</body>
+</html>

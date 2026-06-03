@@ -1,11 +1,15 @@
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join, normalize, sep } from "node:path";
-import { diagnostic, type Diagnostic, type HomeManifest } from "./types";
+import { diagnostic, type Diagnostic, type HomeManifest, type ManifestAction } from "./types";
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const TOP_LEVEL_FIELDS = new Set(["version", "project", "artifacts"]);
 const PROJECT_FIELDS = new Set(["slug", "title"]);
-const ARTIFACT_FIELDS = new Set(["slug", "title", "path", "entry", "tags"]);
+const ARTIFACT_FIELDS_V1 = new Set(["slug", "title", "path", "entry", "tags"]);
+const ARTIFACT_FIELDS_V2 = new Set([...ARTIFACT_FIELDS_V1, "actions"]);
+const ACTION_FIELDS = new Set(["slug", "title", "command", "cwd", "input", "timeout_ms"]);
+const DEFAULT_ACTION_TIMEOUT_MS = 10_000;
+const MAX_ACTION_TIMEOUT_MS = 60_000;
 
 type ManifestParseResult =
   | { ok: true; manifest: HomeManifest }
@@ -70,11 +74,12 @@ export function parseManifest(text: string, sourceName: string): ManifestParseRe
     }
   }
 
-  if (raw.version !== 1) {
+  if (raw.version !== 1 && raw.version !== 2) {
     diagnostics.push(
-      manifestDiagnostic("unsupported_manifest_version", "Manifest version must be 1.", sourceName, "version")
+      manifestDiagnostic("unsupported_manifest_version", "Manifest version must be 1 or 2.", sourceName, "version")
     );
   }
+  const version = raw.version === 2 ? 2 : 1;
 
   if (!isRecord(raw.project)) {
     diagnostics.push(manifestDiagnostic("invalid_manifest", "Project must be an object.", sourceName, "project"));
@@ -118,8 +123,9 @@ export function parseManifest(text: string, sourceName: string): ManifestParseRe
       return null;
     }
 
+    const artifactFields = version === 2 ? ARTIFACT_FIELDS_V2 : ARTIFACT_FIELDS_V1;
     for (const key of Object.keys(artifact)) {
-      if (!ARTIFACT_FIELDS.has(key)) {
+      if (!artifactFields.has(key)) {
         diagnostics.push(
           manifestDiagnostic("invalid_manifest", `Unknown artifact field "${key}".`, sourceName, `${fieldPrefix}.${key}`)
         );
@@ -166,12 +172,15 @@ export function parseManifest(text: string, sourceName: string): ManifestParseRe
       }
     }
 
+    const actions = parseActions(artifact, version, fieldPrefix, sourceName, diagnostics);
+
     return {
       slug,
       title: nonEmptyString(artifact.title) ? artifact.title : slug,
       path: artifactPath,
       entry,
-      tags: tags.filter((tag): tag is string => typeof tag === "string")
+      tags: tags.filter((tag): tag is string => typeof tag === "string"),
+      actions
     };
   });
 
@@ -182,7 +191,7 @@ export function parseManifest(text: string, sourceName: string): ManifestParseRe
   return {
     ok: true,
     manifest: {
-      version: 1,
+      version,
       project: {
         slug: projectSlug,
         title: projectTitle
@@ -191,6 +200,90 @@ export function parseManifest(text: string, sourceName: string): ManifestParseRe
       manifestPath: sourceName
     }
   };
+}
+
+function parseActions(
+  artifact: Record<string, unknown>,
+  version: 1 | 2,
+  fieldPrefix: string,
+  sourceName: string,
+  diagnostics: Diagnostic[]
+): ManifestAction[] {
+  if (!hasOwn(artifact, "actions")) return [];
+  if (version !== 2) {
+    diagnostics.push(
+      manifestDiagnostic("invalid_manifest", "Artifact actions require manifest version 2.", sourceName, `${fieldPrefix}.actions`)
+    );
+    return [];
+  }
+  if (!Array.isArray(artifact.actions)) {
+    diagnostics.push(manifestDiagnostic("invalid_manifest", "Actions must be an array.", sourceName, `${fieldPrefix}.actions`));
+    return [];
+  }
+
+  return artifact.actions
+    .map((rawAction, index) => {
+      const actionPrefix = `${fieldPrefix}.actions[${index}]`;
+      if (!isRecord(rawAction)) {
+        diagnostics.push(manifestDiagnostic("invalid_manifest", "Action must be an object.", sourceName, actionPrefix));
+        return null;
+      }
+
+      for (const key of Object.keys(rawAction)) {
+        if (!ACTION_FIELDS.has(key)) {
+          diagnostics.push(
+            manifestDiagnostic("invalid_manifest", `Unknown action field "${key}".`, sourceName, `${actionPrefix}.${key}`)
+          );
+        }
+      }
+
+      const slug = typeof rawAction.slug === "string" ? rawAction.slug : "";
+      if (!validSlug(slug)) {
+        diagnostics.push(manifestDiagnostic("invalid_slug", "Action slug is invalid.", sourceName, `${actionPrefix}.slug`));
+      }
+
+      if (hasOwn(rawAction, "title") && !nonEmptyString(rawAction.title)) {
+        diagnostics.push(manifestDiagnostic("invalid_manifest", "Action title must be a non-empty string.", sourceName, `${actionPrefix}.title`));
+      }
+
+      if (!Array.isArray(rawAction.command) || rawAction.command.length === 0) {
+        diagnostics.push(manifestDiagnostic("invalid_manifest", "Action command must be a non-empty argv array.", sourceName, `${actionPrefix}.command`));
+      }
+      const command = Array.isArray(rawAction.command) ? rawAction.command : [];
+      for (let commandIndex = 0; commandIndex < command.length; commandIndex += 1) {
+        if (!nonEmptyString(command[commandIndex])) {
+          diagnostics.push(
+            manifestDiagnostic("invalid_manifest", "Action command entries must be non-empty strings.", sourceName, `${actionPrefix}.command[${commandIndex}]`)
+          );
+        }
+      }
+
+      if (hasOwn(rawAction, "cwd")) {
+        if (!nonEmptyString(rawAction.cwd) || !safeActionCwd(rawAction.cwd)) {
+          diagnostics.push(manifestDiagnostic("unsafe_path", "Action cwd must be a safe relative path or absolute path.", sourceName, `${actionPrefix}.cwd`));
+        }
+      }
+
+      if (hasOwn(rawAction, "input") && rawAction.input !== "json-stdin") {
+        diagnostics.push(manifestDiagnostic("invalid_manifest", "Action input must be json-stdin.", sourceName, `${actionPrefix}.input`));
+      }
+
+      if (hasOwn(rawAction, "timeout_ms") && !validTimeout(rawAction.timeout_ms)) {
+        diagnostics.push(
+          manifestDiagnostic("invalid_manifest", `Action timeout_ms must be an integer from 1 to ${MAX_ACTION_TIMEOUT_MS}.`, sourceName, `${actionPrefix}.timeout_ms`)
+        );
+      }
+
+      return {
+        slug,
+        title: nonEmptyString(rawAction.title) ? rawAction.title : slug,
+        command: command.filter((entry): entry is string => typeof entry === "string" && entry.length > 0),
+        ...(nonEmptyString(rawAction.cwd) ? { cwd: rawAction.cwd } : {}),
+        input: "json-stdin" as const,
+        timeoutMs: typeof rawAction.timeout_ms === "number" ? rawAction.timeout_ms : DEFAULT_ACTION_TIMEOUT_MS
+      };
+    })
+    .filter((action): action is ManifestAction => action !== null);
 }
 
 export function validSlug(value: string): boolean {
@@ -206,6 +299,20 @@ export function safeRelativePath(value: string, options: { allowEmpty: boolean }
   const normalized = normalize(value);
   if (normalized === "." || normalized === ".." || normalized.startsWith(`..${sep}`)) return false;
   return !normalized.split(/[\\/]/).includes("..");
+}
+
+function safeActionCwd(value: string): boolean {
+  if (value.length === 0) return false;
+  if (value === ".") return true;
+  if (value.includes("\0")) return false;
+  if (value.includes("\\")) return false;
+  if (value.startsWith("~")) return false;
+  if (isAbsolute(value)) return normalize(value).startsWith(sep);
+  return safeRelativePath(value, { allowEmpty: false });
+}
+
+function validTimeout(value: unknown): value is number {
+  return Number.isInteger(value) && value > 0 && value <= MAX_ACTION_TIMEOUT_MS;
 }
 
 function manifestDiagnostic(code: string, message: string, path: string, field?: string): Diagnostic {

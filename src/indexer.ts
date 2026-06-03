@@ -1,7 +1,7 @@
 import { realpath, stat } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { isAbsolute, join, relative } from "node:path";
 import { loadManifest } from "./manifest";
-import { diagnostic, type Diagnostic, type IndexedArtifact, type IndexedProject, type IndexSnapshot, type Registration } from "./types";
+import { diagnostic, type Diagnostic, type IndexedAction, type IndexedArtifact, type IndexedProject, type IndexSnapshot, type ManifestAction, type Registration } from "./types";
 
 export type IndexResult = {
   index: IndexSnapshot;
@@ -154,6 +154,16 @@ export async function scanRegisteredRoots(
         }
       }
 
+      const actions = await indexActions({
+        actions: artifact.actions,
+        manifestRoot: rootResult.path,
+        registration,
+        projectSlug: manifestResult.manifest.project.slug,
+        artifactSlug: artifact.slug,
+        generatedAt
+      });
+      diagnostics.push(...actions.flatMap((action) => action.diagnostics));
+
       diagnostics.push(...artifactDiagnostics);
       artifacts.push({
         projectSlug: manifestResult.manifest.project.slug,
@@ -165,6 +175,7 @@ export async function scanRegisteredRoots(
         artifactBaseDirectory,
         entry: artifact.entry,
         tags: artifact.tags,
+        actions,
         lastIndexedAt: generatedAt,
         status,
         stale: false,
@@ -199,6 +210,70 @@ export async function scanRegisteredRoots(
 
 export function routeKey(projectSlug: string, artifactSlug: string): string {
   return `${projectSlug}/${artifactSlug}`;
+}
+
+export function actionKey(projectSlug: string, artifactSlug: string, actionSlug: string): string {
+  return `${routeKey(projectSlug, artifactSlug)}/${actionSlug}`;
+}
+
+async function indexActions(input: {
+  actions: ManifestAction[];
+  manifestRoot: string;
+  registration: Registration;
+  projectSlug: string;
+  artifactSlug: string;
+  generatedAt: string;
+}): Promise<IndexedAction[]> {
+  const indexed: IndexedAction[] = [];
+  for (const action of input.actions) {
+    const actionDiagnostics: Diagnostic[] = [];
+    const declaredCwd = action.cwd
+      ? isAbsolute(action.cwd)
+        ? action.cwd
+        : join(input.manifestRoot, action.cwd)
+      : input.manifestRoot;
+    const cwdResult = await canonicalDirectory(declaredCwd);
+    let cwd = declaredCwd;
+    let status = "ok";
+
+    if (!cwdResult.ok) {
+      status = "missing_action_cwd";
+      actionDiagnostics.push(
+        diagnostic({
+          severity: "blocked",
+          code: "missing_action_cwd",
+          message: cwdResult.message,
+          hint: "Create the action cwd or update the manifest action.",
+          scope: "action",
+          registrationId: input.registration.registrationId,
+          projectSlug: input.projectSlug,
+          artifactSlug: input.artifactSlug,
+          actionSlug: action.slug,
+          routeKey: actionKey(input.projectSlug, input.artifactSlug, action.slug),
+          path: declaredCwd,
+          field: "cwd"
+        })
+      );
+    } else {
+      cwd = cwdResult.path;
+    }
+
+    indexed.push({
+      projectSlug: input.projectSlug,
+      artifactSlug: input.artifactSlug,
+      actionSlug: action.slug,
+      title: action.title,
+      command: action.command,
+      cwd,
+      input: action.input,
+      timeoutMs: action.timeoutMs,
+      lastIndexedAt: input.generatedAt,
+      status,
+      stale: false,
+      diagnostics: actionDiagnostics
+    });
+  }
+  return indexed;
 }
 
 async function canonicalDirectory(path: string): Promise<{ ok: true; path: string } | { ok: false; code: string; message: string }> {
@@ -270,6 +345,19 @@ function applyDuplicateDiagnostics(projects: IndexedProject[], diagnostics: Diag
         artifact.status = "duplicate_project_slug";
         artifact.diagnostics.push(artifactDiag);
         diagnostics.push(artifactDiag);
+        for (const action of artifact.actions ?? []) {
+          const actionDiag = {
+            ...diag,
+            scope: "action" as const,
+            artifactSlug: artifact.artifactSlug,
+            actionSlug: action.actionSlug,
+            routeKey: actionKey(action.projectSlug, action.artifactSlug, action.actionSlug),
+            path: action.cwd
+          };
+          action.status = "duplicate_project_slug";
+          action.diagnostics.push(actionDiag);
+          diagnostics.push(actionDiag);
+        }
       }
     }
   }
@@ -344,7 +432,29 @@ function staleProjectsForRegistration(
           status: code,
           stale: true,
           lastIndexedAt: generatedAt,
-          diagnostics: [artifactDiag]
+          diagnostics: [artifactDiag],
+          actions: (artifact.actions ?? []).map((action) => {
+            const actionDiag = diagnostic({
+              severity: "blocked",
+              code,
+              message,
+              hint,
+              scope: "action",
+              registrationId: registration.registrationId,
+              projectSlug: action.projectSlug,
+              artifactSlug: action.artifactSlug,
+              actionSlug: action.actionSlug,
+              routeKey: actionKey(action.projectSlug, action.artifactSlug, action.actionSlug),
+              path: action.cwd
+            });
+            return {
+              ...action,
+              status: code,
+              stale: true,
+              lastIndexedAt: generatedAt,
+              diagnostics: [actionDiag]
+            };
+          })
         };
       })
     };
@@ -360,7 +470,14 @@ function sortProjects(projects: IndexedProject[]): IndexedProject[] {
   return projects
     .map((project) => ({
       ...project,
-      artifacts: [...project.artifacts].sort((a, b) => routeKey(a.projectSlug, a.artifactSlug).localeCompare(routeKey(b.projectSlug, b.artifactSlug)))
+      artifacts: [...project.artifacts]
+        .map((artifact) => ({
+          ...artifact,
+          actions: [...(artifact.actions ?? [])].sort((a, b) =>
+            actionKey(a.projectSlug, a.artifactSlug, a.actionSlug).localeCompare(actionKey(b.projectSlug, b.artifactSlug, b.actionSlug))
+          )
+        }))
+        .sort((a, b) => routeKey(a.projectSlug, a.artifactSlug).localeCompare(routeKey(b.projectSlug, b.artifactSlug)))
     }))
     .sort((a, b) => a.projectSlug.localeCompare(b.projectSlug) || a.manifestRoot.localeCompare(b.manifestRoot));
 }

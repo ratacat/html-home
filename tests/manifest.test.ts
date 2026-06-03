@@ -30,7 +30,43 @@ describe("manifest", () => {
       title: "Charts",
       path: "dist",
       entry: "index.html",
-      tags: []
+      tags: [],
+      actions: []
+    });
+  });
+
+  test("loads v2 artifact actions with defaults", () => {
+    const result = parseManifest(
+      JSON.stringify({
+        version: 2,
+        project: { slug: "garden", title: "Garden" },
+        artifacts: [
+          {
+            slug: "charts",
+            path: "dist",
+            actions: [
+              {
+                slug: "refresh",
+                command: ["bun", "run", "refresh"],
+                cwd: "."
+              }
+            ]
+          }
+        ]
+      }),
+      "/tmp/root/.html-home.json"
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected manifest to parse");
+    expect(result.manifest.version).toBe(2);
+    expect(result.manifest.artifacts[0].actions[0]).toMatchObject({
+      slug: "refresh",
+      title: "refresh",
+      command: ["bun", "run", "refresh"],
+      cwd: ".",
+      input: "json-stdin",
+      timeoutMs: 10000
     });
   });
 
@@ -85,5 +121,42 @@ describe("manifest", () => {
     expect(result.diagnostics.some((d) => d.field === "artifacts[0].title")).toBe(true);
     expect(result.diagnostics.some((d) => d.field === "artifacts[0].entry")).toBe(true);
     expect(result.diagnostics.some((d) => d.field === "artifacts[0].tags")).toBe(true);
+  });
+
+  test("rejects malformed v2 actions with field-specific diagnostics", () => {
+    const result = parseManifest(
+      JSON.stringify({
+        version: 2,
+        project: { slug: "garden" },
+        artifacts: [
+          {
+            slug: "charts",
+            path: "dist",
+            actions: [
+              {
+                slug: "Bad",
+                title: "",
+                command: "bun script.ts",
+                cwd: "../elsewhere",
+                input: "query",
+                timeout_ms: 999999,
+                extra: true
+              }
+            ]
+          }
+        ]
+      }),
+      "/tmp/root/.html-home.json"
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected manifest to fail");
+    expect(result.diagnostics.some((d) => d.field === "artifacts[0].actions[0].slug")).toBe(true);
+    expect(result.diagnostics.some((d) => d.field === "artifacts[0].actions[0].title")).toBe(true);
+    expect(result.diagnostics.some((d) => d.field === "artifacts[0].actions[0].command")).toBe(true);
+    expect(result.diagnostics.some((d) => d.field === "artifacts[0].actions[0].cwd")).toBe(true);
+    expect(result.diagnostics.some((d) => d.field === "artifacts[0].actions[0].input")).toBe(true);
+    expect(result.diagnostics.some((d) => d.field === "artifacts[0].actions[0].timeout_ms")).toBe(true);
+    expect(result.diagnostics.some((d) => d.field === "artifacts[0].actions[0].extra")).toBe(true);
   });
 });

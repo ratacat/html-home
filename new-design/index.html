@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en" data-skin="workbench">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>html-home — the workbench</title>
+<!-- modular: tokens define the contract, skins fill it, app paints the structure -->
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/skins.css" />
+<link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+  <!-- skinnable backdrop: photo (workbench) · wash · grid + registration (ozalid) -->
+  <div class="surface-layers" aria-hidden="true">
+    <div class="surface-photo"></div>
+    <div class="surface-wash"></div>
+    <div class="surface-grid"></div>
+    <div class="surface-reg">
+      <span class="tl">+ A1</span><span class="tr">B7 +</span>
+      <span class="bl">+ ⌖</span><span class="br">⌖ +</span>
+      <span class="cx">+</span><span class="c1">↳ rev.3</span><span class="c2">scale 1:1</span>
+    </div>
+  </div>
+
+  <div class="shell">
+    <!-- top bar -->
+    <header class="top">
+      <div class="brand">
+        <span class="logo"><b>html</b>-home</span>
+        <span class="tag">the workbench · local artifact catalog</span>
+      </div>
+      <span class="serve"><span class="dot"></span> serving · localhost:4317</span>
+      <div class="seg skins" role="group" aria-label="Skin">
+        <button data-skin="workbench" aria-pressed="true">Workbench</button>
+        <button data-skin="ozalid" aria-pressed="false">Ozalid</button>
+        <button data-skin="gallery" aria-pressed="false">Gallery</button>
+      </div>
+    </header>
+
+    <!-- toolbar -->
+    <div class="toolbar">
+      <label class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="q" type="search" placeholder="Search artifacts, repos, tags, paths…" autocomplete="off" />
+      </label>
+      <div class="chips" id="statusChips">
+        <button class="chip" data-status="all" aria-pressed="true">All</button>
+        <button class="chip" data-status="current" aria-pressed="false">Current<span class="n" id="nCurrent"></span></button>
+        <button class="chip" data-status="stale" aria-pressed="false">Stale<span class="n" id="nStale"></span></button>
+        <button class="chip" data-status="broken" aria-pressed="false">Broken<span class="n" id="nBroken"></span></button>
+      </div>
+      <div class="seg view" role="group" aria-label="View">
+        <button data-view="grid" aria-pressed="true" title="Grid view">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Grid
+        </button>
+        <button data-view="list" aria-pressed="false" title="List view">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>
+          List
+        </button>
+      </div>
+    </div>
+    <div class="chips" id="repoChips" style="margin-top:2px"></div>
+
+    <!-- diagnostics -->
+    <div class="diag">
+      <span><span class="swatch" style="background:var(--ok)"></span><b id="dTotal">0</b> artifacts</span>
+      <span class="sep"></span>
+      <span><span class="swatch" style="background:var(--ok)"></span><b id="dRepos">0</b> repos registered</span>
+      <span class="sep"></span>
+      <span><span class="swatch" style="background:var(--warn)"></span><b id="dStale">0</b> stale</span>
+      <span class="sep"></span>
+      <span><span class="swatch" style="background:var(--bad)"></span><b id="dBroken">0</b> broken paths</span>
+    </div>
+
+    <!-- the panel -->
+    <main class="panel" id="panel"></main>
+
+    <footer class="pagefoot">
+      <span class="note"><b>Sample catalog</b> — illustrative data, not a live filesystem scan</span>
+      <span>manifests: <b style="color:var(--fg)">.html-home.json</b> per repo · index owns discovery · repo owns the files</span>
+    </footer>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

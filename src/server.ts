@@ -1,28 +1,60 @@
-import { readFile } from "node:fs/promises";
-import { extname } from "node:path";
+import { readFile, realpath } from "node:fs/promises";
+import { extname, isAbsolute, join, relative, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+import { handleActionRequest } from "./actions";
 import { resolveArtifactAsset } from "./resolver";
 import { renderHomePage, renderProjectPage } from "./start_page";
 import { loadState } from "./state";
+import { originBaseUrl } from "./url";
+
+const UI_ASSET_ROOT = fileURLToPath(new URL("../assets", import.meta.url));
 
 export type ServerConfig = {
   statePath: string;
+  publicBaseUrl?: string;
+  catalogLabel?: string;
+  actionsEnabled?: boolean;
+  requestBodyLimitBytes?: number;
+  stdoutLimitBytes?: number;
+  stderrLimitBytes?: number;
+  auditPath?: string;
 };
 
 export async function handleRequest(request: Request, config: ServerConfig): Promise<Response> {
   const pathname = rawPathnameFromRequestUrl(request.url);
+  const loaded = await loadState(config.statePath);
+  const state = loaded.state;
+
+  const actionMatch = /^\/api\/actions\/([^/]+)\/([^/]+)\/([^/]+)$/.exec(pathname);
+  if (actionMatch) {
+    const projectSlug = decodeRouteSegment(actionMatch[1]);
+    const artifactSlug = decodeRouteSegment(actionMatch[2]);
+    const actionSlug = decodeRouteSegment(actionMatch[3]);
+    if (projectSlug === null || artifactSlug === null || actionSlug === null) {
+      return jsonError("unsafe_path", "Unsafe path.", 404, undefined, request.method);
+    }
+    return handleActionRequest(request, state.index, { projectSlug, artifactSlug, actionSlug }, config);
+  }
+
   if (request.method !== "GET" && request.method !== "HEAD") {
     return jsonError("method_not_allowed", "Method not allowed.", 405, { Allow: "GET, HEAD" }, request.method);
   }
 
-  const loaded = await loadState(config.statePath);
-  const state = loaded.state;
+  if (pathname.startsWith("/_html-home/assets/")) {
+    return builtinAssetResponse(pathname.slice("/_html-home/assets/".length), request.method);
+  }
+
+  const renderOptions = {
+    baseUrl: config.publicBaseUrl ?? originBaseUrl(request.url),
+    catalogLabel: config.catalogLabel
+  };
 
   if (pathname === "/api/state") {
     return jsonResponse(state, request.method);
   }
 
   if (pathname === "/") {
-    return htmlResponse(renderHomePage(state), request.method);
+    return htmlResponse(renderHomePage(state, renderOptions), request.method);
   }
 
   const projectMatch = /^\/p\/([^/]+)\/$/.exec(pathname);
@@ -31,10 +63,10 @@ export async function handleRequest(request: Request, config: ServerConfig): Pro
     if (projectSlug === null) return jsonError("unsafe_path", "Unsafe path.", 404, undefined, request.method);
     const project = state.index.projects.find((item) => item.projectSlug === projectSlug);
     if (!project) return jsonError("project_not_found", "Project not found.", 404, undefined, request.method);
-    return htmlResponse(renderProjectPage(project, state), request.method);
+    return htmlResponse(renderProjectPage(project, state, renderOptions), request.method);
   }
 
-  const artifactMatch = /^\/a\/([^/]+)\/([^/]+)\/(.*)$/.exec(pathname);
+  const artifactMatch = /^\/home\/([^/]+)\/([^/]+)\/(.*)$/.exec(pathname);
   if (artifactMatch) {
     const projectSlug = decodeRouteSegment(artifactMatch[1]);
     const artifactSlug = decodeRouteSegment(artifactMatch[2]);
@@ -62,6 +94,52 @@ export async function handleRequest(request: Request, config: ServerConfig): Pro
   }
 
   return jsonError("route_not_found", "Route not found.", 404, undefined, request.method);
+}
+
+async function builtinAssetResponse(assetPath: string, method: string): Promise<Response> {
+  const resolved = await resolveBuiltinAsset(assetPath);
+  if (!resolved.ok) {
+    return jsonError(resolved.code, resolved.message, resolved.status, undefined, method);
+  }
+  if (method === "HEAD") {
+    return new Response(null, { status: 200, headers: commonHeaders(contentTypeFor(resolved.path)) });
+  }
+  try {
+    const bytes = await readFile(resolved.path);
+    return new Response(bytes, { status: 200, headers: commonHeaders(contentTypeFor(resolved.path)) });
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code === "EACCES" || code === "EPERM") {
+      return jsonError("unreadable", "File is unreadable.", 403, undefined, method);
+    }
+    return jsonError("asset_not_found", "Asset not found.", 404, undefined, method);
+  }
+}
+
+async function resolveBuiltinAsset(assetPath: string): Promise<{ ok: true; path: string } | { ok: false; code: string; message: string; status: number }> {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(assetPath);
+  } catch {
+    return { ok: false, code: "unsafe_path", message: "Unsafe path.", status: 404 };
+  }
+  if (decoded.includes("\0") || decoded.includes("\\") || decoded.length === 0) {
+    return { ok: false, code: "unsafe_path", message: "Unsafe path.", status: 404 };
+  }
+  const parts = decoded.split("/");
+  if (parts.some((part) => part.length === 0 || part === "." || part === "..")) {
+    return { ok: false, code: "unsafe_path", message: "Unsafe path.", status: 404 };
+  }
+  try {
+    const root = await realpath(UI_ASSET_ROOT);
+    const target = await realpath(join(root, ...parts));
+    if (!isInside(root, target)) {
+      return { ok: false, code: "unsafe_path", message: "Unsafe path.", status: 404 };
+    }
+    return { ok: true, path: target };
+  } catch {
+    return { ok: false, code: "asset_not_found", message: "Asset not found.", status: 404 };
+  }
 }
 
 export function serve(config: ServerConfig, options: { host: string; port: number }) {
@@ -136,6 +214,11 @@ function contentTypeFor(path: string): string {
     default:
       return "application/octet-stream";
   }
+}
+
+function isInside(base: string, target: string): boolean {
+  const rel = relative(base, target);
+  return rel === "" || (!rel.startsWith(`..${sep}`) && rel !== ".." && !isAbsolute(rel));
 }
 
 function rawPathnameFromRequestUrl(requestUrl: string): string {

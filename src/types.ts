@@ -5,15 +5,27 @@ export type Diagnostic = {
   code: string;
   message: string;
   hint?: string;
-  scope: "state" | "registration" | "manifest" | "project" | "artifact" | "route" | "file";
+  scope: "state" | "registration" | "manifest" | "project" | "artifact" | "action" | "route" | "file";
   registrationId?: string;
   projectSlug?: string;
   artifactSlug?: string;
+  actionSlug?: string;
   routeKey?: string;
   path?: string;
   field?: string;
   relatedPaths?: string[];
   observedAt: string;
+};
+
+export type ActionInputMode = "json-stdin";
+
+export type ManifestAction = {
+  slug: string;
+  title: string;
+  command: string[];
+  cwd?: string;
+  input: ActionInputMode;
+  timeoutMs: number;
 };
 
 export type ArtifactManifest = {
@@ -22,6 +34,7 @@ export type ArtifactManifest = {
   path: string;
   entry: string;
   tags: string[];
+  actions: ManifestAction[];
 };
 
 export type ProjectManifest = {
@@ -30,7 +43,7 @@ export type ProjectManifest = {
 };
 
 export type HomeManifest = {
-  version: 1;
+  version: 1 | 2;
   project: ProjectManifest;
   artifacts: ArtifactManifest[];
   manifestPath?: string;
@@ -69,6 +82,22 @@ export type IndexedArtifact = {
   artifactBaseDirectory: string;
   entry: string;
   tags: string[];
+  actions: IndexedAction[];
+  lastIndexedAt: string;
+  status: string;
+  stale: boolean;
+  diagnostics: Diagnostic[];
+};
+
+export type IndexedAction = {
+  projectSlug: string;
+  artifactSlug: string;
+  actionSlug: string;
+  title: string;
+  command: string[];
+  cwd: string;
+  input: ActionInputMode;
+  timeoutMs: number;
   lastIndexedAt: string;
   status: string;
   stale: boolean;

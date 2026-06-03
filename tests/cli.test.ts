@@ -35,6 +35,14 @@ async function run(args: string[], state: string) {
 }
 
 describe("cli", () => {
+  test("help omits developer-only demo mode", async () => {
+    const state = await statePath();
+    const helped = await run(["--help"], state);
+
+    expect(helped.exitCode).toBe(0);
+    expect(helped.stdout).not.toContain("demo");
+  });
+
   test("register writes state and list prints indexed artifact", async () => {
     const root = await fixtureRoot();
     const state = await statePath();

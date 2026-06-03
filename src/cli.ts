@@ -12,6 +12,7 @@ import {
   saveStateAtomic
 } from "./state";
 import type { Diagnostic, StateDoc } from "./types";
+import { resolveServeUrl } from "./url";
 
 type CliIO = {
   env?: NodeJS.ProcessEnv;
@@ -39,7 +40,10 @@ export async function runCli(args: string[], io: CliIO = {}): Promise<number> {
       case "doctor":
         return await cmdDoctor(statePath, stdout);
       case "serve":
-        return await cmdServe(rest, statePath, stdout);
+        return await cmdServe(rest, statePath, stdout, env, {
+          defaultPort: "8765",
+          label: "html-home serving"
+        });
       case "--help":
       case "-h":
       case undefined:
@@ -150,16 +154,32 @@ async function cmdDoctor(statePath: string, stdout: (line: string) => void) {
   return blocking.length > 0 ? 1 : 0;
 }
 
-async function cmdServe(args: string[], statePath: string, stdout: (line: string) => void) {
+type ServeOptions = {
+  defaultPort: string;
+  label: string;
+  baseUrl?: string;
+  catalogLabel?: string;
+};
+
+async function cmdServe(args: string[], statePath: string, stdout: (line: string) => void, env: NodeJS.ProcessEnv, options: ServeOptions) {
+  const actionsEnabled = args.includes("--actions");
   const host = flagValue(args, "--host") ?? "127.0.0.1";
-  const portText = flagValue(args, "--port") ?? "8765";
+  const portText = flagValue(args, "--port") ?? options.defaultPort;
+  const baseUrl = options.baseUrl ?? flagValue(args, "--base-url") ?? env.HTML_HOME_BASE_URL;
   const port = Number.parseInt(portText, 10);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error(`invalid port: ${portText}`);
   }
-  const server = serve({ statePath }, { host, port });
-  stdout("html-home serving");
-  stdout(`start page: http://${server.hostname}:${server.port}/`);
+  if (actionsEnabled && (host === "0.0.0.0" || host === "::")) {
+    throw new Error("action mode requires a loopback host; pass a loopback --host");
+  }
+  const urlPlan = resolveServeUrl({ host, port, baseUrl });
+  const server = serve({ statePath, actionsEnabled, publicBaseUrl: urlPlan.baseUrl, catalogLabel: options.catalogLabel }, { host, port });
+  stdout(options.label);
+  stdout(`start page: ${urlPlan.baseUrl}`);
+  if (server.hostname !== host || server.port !== port) stdout(`bound: http://${server.hostname}:${server.port}/`);
+  for (const note of urlPlan.notes) stdout(`note: ${note}`);
+  if (actionsEnabled) stdout("actions: enabled");
   stdout(`state: ${statePath}`);
   stdout("Press Ctrl-C to stop.");
   await new Promise(() => undefined);
@@ -219,7 +239,7 @@ commands:
   unregister <path>    remove a manifest root registration
   list                 print indexed projects and artifacts
   doctor               live validation without writing state
-  serve [--host H] [--port P]
+  serve [--host H] [--port P] [--base-url URL] [--actions]
 `;
 }
 

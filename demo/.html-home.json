@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "project": {
+    "slug": "html-home-demo",
+    "title": "HTML Home Demo"
+  },
+  "artifacts": [
+    {
+      "slug": "incident-dashboard",
+      "title": "Incident Dashboard",
+      "path": "artifacts/incident-dashboard",
+      "entry": "index.html",
+      "tags": ["dashboard", "ops", "sample"]
+    },
+    {
+      "slug": "graph-explorer",
+      "title": "Graph Explorer",
+      "path": "artifacts/graph-explorer",
+      "entry": "index.html",
+      "tags": ["graph", "research", "sample"]
+    },
+    {
+      "slug": "snippet-library",
+      "title": "Snippet Library",
+      "path": "artifacts/snippet-library",
+      "entry": "index.html",
+      "tags": ["library", "ui", "sample"]
+    },
+    {
+      "slug": "market-brief",
+      "title": "Market Brief",
+      "path": "artifacts/market-brief",
+      "entry": "index.html",
+      "tags": ["brief", "report", "sample"]
+    }
+  ]
+}

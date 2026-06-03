@@ -29,7 +29,14 @@ curl -fsSL https://raw.githubusercontent.com/ratacat/html-home/main/install.sh |
 For agent instructions, add a small rule to your repo's `AGENTS.md`:
 
 ```md
-When you need a local HTML server, use `html-home`; do not start ad hoc static servers. Expose artifacts via `.html-home.json`, then run `html-home register /path/to/repo` and `html-home rescan`.
+Goal: expose local HTML artifacts through one shared server.
+
+Success means:
+- The artifact has a `.html-home.json` manifest and appears in `html-home list`.
+- The shared `html-home` server serves the artifact URL.
+- Repo-specific static, preview, or dev servers used only for artifact viewing are stopped before handoff.
+
+Use `html-home` for local static HTML artifacts. Generate the artifact files, expose them with `.html-home.json`, then run `html-home register /path/to/repo` once and `html-home rescan` after changes. Open artifacts at `/home/<project>/<artifact>/` on the `html-home` base URL. Start repo-specific dev/API servers only for live backend behavior, and stop them when the task returns to static artifact viewing.
 ```
 
 ## The Model
@@ -43,13 +50,15 @@ Registration is local to the machine. It points `html-home` at repos with manife
 **One server serves what exists.**  
 The foreground server renders a start page and serves artifact files from their home repos. HTTP is read-only in v1; CLI commands perform registration changes.
 
+Use `html-home` as the only server for static artifact viewing. Project dev servers remain useful for live backend behavior, but they should not duplicate `html-home` for generated HTML, coverage reports, dashboards, prototypes, or snapshot views.
+
 This is the smallest useful structure: the repo owns the artifact, the local index owns discovery, and the server owns presentation. Because those jobs stay separate, `html-home` can cover many unrelated projects without becoming a build system, sync folder, dev-server proxy, or daemon.
 
 ## Status
 
 `html-home` is an early local-first v1. It is designed for one machine, one user, and repo-local static HTML artifacts.
 
-It is intended for localhost use. Do not expose it directly to an untrusted network.
+It is intended for localhost use by default. Do not expose it directly to an untrusted network.
 
 ## Install
 
@@ -149,17 +158,66 @@ html-home serve
 Open:
 
 ```text
-http://127.0.0.1:8765/
+http://localhost:8765/
 ```
 
 The artifact gets a stable local URL shape:
 
 ```text
-http://127.0.0.1:8765/a/my-project/dashboard/
+http://localhost:8765/home/my-project/dashboard/
 ```
 
 The `dashboard` artifact is served from `artifacts/dashboard/index.html`. Its files stay in the repo, so relative asset URLs inside the artifact directory keep working.
 
+## Better Local URLs
+
+`html-home serve` separates the bind address from the URL shown and copied in the UI.
+
+Defaults:
+
+```sh
+html-home serve
+# http://localhost:8765/
+```
+
+Custom local alias:
+
+```sh
+html-home serve --base-url http://home.html:8765/
+```
+
+For that to open in a browser, `home.html` must resolve to the machine running `html-home` through `/etc/hosts`, DNS, a reverse proxy, or another local naming setup. The alias changes displayed and copied URLs; it does not change the bind host.
+
+For managed services, set the same value with `HTML_HOME_BASE_URL`.
+
+Remote or Tailscale host:
+
+```sh
+html-home serve --host 0.0.0.0 --base-url http://mac-studio-ultra:8765/
+```
+
+Use the machine's Tailscale MagicDNS name, Tailscale IP, or LAN DNS name as the base URL. When bound to all interfaces, the CLI avoids printing `0.0.0.0` as an openable URL and asks for an explicit `--base-url`.
+
+## Real Catalog And Developer Demo
+
+Use `serve` for your real local artifacts:
+
+```sh
+html-home serve --host 0.0.0.0 --port 3027 --base-url http://mac-studio-ultra:3027/
+```
+
+This reads the normal local state file and shows only registered real manifest roots.
+
+The demo catalog is for developers working from this source checkout. It is not part of the installed `html-home` CLI flow.
+
+```sh
+bun run demo -- --host 0.0.0.0 --port 3028 --base-url http://mac-studio-ultra:3028/
+```
+
+The developer demo refreshes a separate demo state file from `demo/.html-home.json` and never registers sample artifacts into the real catalog. If you need a persistent demo URL, set `HTML_HOME_DEMO_BASE_URL`.
+
 ## More Detail
 
 For manifest rules, URL behavior, stale index semantics, path safety, and module boundaries, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+For the proposed local action gateway that lets artifacts submit manifest-declared actions through the shared server, see [docs/ACTION-GATEWAY-PROPOSAL.md](docs/ACTION-GATEWAY-PROPOSAL.md).

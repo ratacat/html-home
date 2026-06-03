@@ -39,6 +39,67 @@ describe("indexer", () => {
     expect(result.diagnostics).toEqual([]);
   });
 
+  test("indexes v2 actions with resolved cwd", async () => {
+    const root = await fixtureRoot();
+    await mkdir(join(root, "tools"), { recursive: true });
+    await writeFile(
+      join(root, ".html-home.json"),
+      JSON.stringify({
+        version: 2,
+        project: { slug: "garden" },
+        artifacts: [{
+          slug: "charts",
+          path: "dist",
+          actions: [{
+            slug: "refresh",
+            command: ["bun", "refresh.ts"],
+            cwd: "tools",
+            timeout_ms: 30000
+          }]
+        }]
+      })
+    );
+    const state = addOrUpdateRegistration(emptyState(), root);
+
+    const result = await scanRegisteredRoots(state.registrations);
+
+    const action = result.index.projects[0].artifacts[0].actions[0];
+    expect(action).toMatchObject({
+      projectSlug: "garden",
+      artifactSlug: "charts",
+      actionSlug: "refresh",
+      command: ["bun", "refresh.ts"],
+      timeoutMs: 30000,
+      status: "ok"
+    });
+    expect(action.cwd).toContain("tools");
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  test("reports missing action cwd without blocking the static artifact", async () => {
+    const root = await fixtureRoot();
+    await writeFile(
+      join(root, ".html-home.json"),
+      JSON.stringify({
+        version: 2,
+        project: { slug: "garden" },
+        artifacts: [{
+          slug: "charts",
+          path: "dist",
+          actions: [{ slug: "refresh", command: ["bun", "refresh.ts"], cwd: "missing" }]
+        }]
+      })
+    );
+    const state = addOrUpdateRegistration(emptyState(), root);
+
+    const result = await scanRegisteredRoots(state.registrations);
+
+    const artifact = result.index.projects[0].artifacts[0];
+    expect(artifact.status).toBe("ok");
+    expect(artifact.actions[0].status).toBe("missing_action_cwd");
+    expect(result.diagnostics.map((d) => d.code)).toContain("missing_action_cwd");
+  });
+
   test("reports missing entry files as non-routable artifacts", async () => {
     const root = await fixtureRoot();
     await writeFile(
