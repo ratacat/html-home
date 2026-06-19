@@ -119,10 +119,20 @@ describe("server", () => {
     const { statePath } = await fixture();
 
     const response = await request("/_html-home/assets/bench.jpg", statePath);
+    const stylesheet = await request("/_html-home/assets/start-page.css", statePath);
+    const stylesheetText = await stylesheet.text();
+    const script = await request("/_html-home/assets/start-page.js", statePath);
+    const scriptText = await script.text();
     const blocked = await request("/_html-home/assets/..%2fpackage.json", statePath);
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("image/jpeg");
+    expect(stylesheet.status).toBe(200);
+    expect(stylesheet.headers.get("content-type")).toBe("text/css; charset=utf-8");
+    expect(stylesheetText).toContain("html[data-skin=\"ozalid\"]");
+    expect(script.status).toBe(200);
+    expect(script.headers.get("content-type")).toBe("text/javascript; charset=utf-8");
+    expect(scriptText).toContain("mountPreviews");
     expect(blocked.status).toBe(404);
   });
 
@@ -232,7 +242,12 @@ console.log(JSON.stringify({ ok: true }));
     expect(home.status).toBe(200);
     expect(homeText).toContain("Recently opened in this browser");
     expect(homeText).toContain("data-status-filter=\"blocked\"");
+    expect(homeText).toContain("data-preview-key=\"garden/charts\"");
+    expect(homeText).toContain("id=\"html-home-preview-data\"");
+    expect(homeText).toContain("/_html-home/assets/start-page.css");
+    expect(homeText).toContain("/_html-home/assets/start-page.js");
     expect(homeText).toContain("Garden &lt;Project&gt;");
+    expect(homeText).not.toContain("window.ARTIFACTS");
     expect(project.status).toBe(200);
     expect(projectText).toContain("Charts &lt;One&gt;");
   });
